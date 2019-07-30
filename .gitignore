@@ -369,3 +369,8 @@ ros/devel/
 ros/logs/
 ros/.catkin_workspace
 ros/src/CMakeLists.txt
+
+# CUSTOM
+.idea/
+
+
