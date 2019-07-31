@@ -372,5 +372,6 @@ ros/src/CMakeLists.txt
 
 # CUSTOM
 .idea/
+SkySpecs/airsim_drone
 
 

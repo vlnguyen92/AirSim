@@ -52,7 +52,8 @@ else
         export CC=/usr/local/opt/llvm-5.0/bin/clang-5.0
         export CXX=/usr/local/opt/llvm-5.0/bin/clang++-5.0
     else
-        CMAKE="$(readlink -f cmake_build/bin/cmake)"
+        #CMAKE="$(readlink -f cmake_build/bin/cmake)"
+	CMAKE="/usr/bin/cmake"
 
         export CC="clang-5.0"
         export CXX="clang++-5.0"

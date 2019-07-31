@@ -76,7 +76,8 @@ fi
 if [ "$(uname)" == "Darwin" ]; then
     CMAKE="$(greadlink -f cmake_build/bin/cmake)"
 else
-    CMAKE="$(readlink -f cmake_build/bin/cmake)"
+    #CMAKE="$(readlink -f cmake_build/bin/cmake)"
+    CMAKE="/usr/bin/cmake"
 fi
 
 # Download rpclib

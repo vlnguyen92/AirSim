@@ -64,8 +64,6 @@ except OSError:
     if not os.path.isdir(tmp_dir):
         raise
 
-import pdb
-pdb.set_trace()
 for idx, response in enumerate(responses):
 
     filename = os.path.join(tmp_dir, str(idx))
