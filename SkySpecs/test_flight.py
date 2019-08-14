@@ -16,7 +16,10 @@ class TestFlight:
         self.home = self.client.getMultirotorState().kinematics_estimated.position
         self.takeoff = False
         self.snapshot_index = 0
+        self.altitude = 0
         self._check_stable()
+        self.start = 0
+        self.z = 0
 
     def _check_stable(self):
         start = time.time()
@@ -33,10 +36,11 @@ class TestFlight:
             else:
                 count += 1
 
-    def takeoff(self):
+    def take_off(self):
         print("Arming drone")
         start = self.client.getMultirotorState().kinematics_estimated.position
         landed = self.client.getMultirotorState().landed_state
+
         if not self.takeoff and landed == airsim.LandedState.Landed:
             self.takeoff = True
             print("taking off...")
@@ -47,6 +51,9 @@ class TestFlight:
             print("already flying so we will orbit at current altitude {}".format(start.z_val))
             z = start.z_val # use current altitude then
 
+        self.start = start
+        self.z = z
+
     def orbit(self,
               radius=2,
               altitude=10,
@@ -54,6 +61,8 @@ class TestFlight:
               iterations=1,
               center=[1,0],
               snapshots=None):
+
+        z = self.altitude + self.home.z_val
 
         # TODO: change start and z to correct value
         start = self.client.getMultirotorState().kinematics_estimated.position
@@ -130,19 +139,19 @@ class TestFlight:
             print("disarming.")
             self.client.armDisarm(False)
 
-    def take_snapshot(self):
+    def take_snapshots(self):
         # first hold our current position so drone doesn't try and keep flying while we take the picture.
         pos = self.client.getMultirotorState().kinematics_estimated.position
 
-        self.client.moveToPositionAsync(pos.x_val, pos.y_val, self.z, 0.5, 10, airsim.DrivetrainType.MaxDegreeOfFreedom,
-            airsim.YawMode(False, self.camera_heading)).join()
+        #self.client.moveToPositionAsync(pos.x_val, pos.y_val, self.z, 0.5, 10, airsim.DrivetrainType.MaxDegreeOfFreedom, airsim.YawMode(False, self.camera_heading)).join()
+
+        self.client.hoverAsync().join()
 
         responses = self.client.simGetImages([
             airsim.ImageRequest("0", airsim.ImageType.DepthVis),
             airsim.ImageRequest("1", airsim.ImageType.DepthPerspective, True),  # depth in perspective projection
             airsim.ImageRequest("1", airsim.ImageType.Scene),  # scene vision image in png format
-            airsim.ImageRequest("0", airsim.ImageType.Segmentation, True),
-            airsim.ImageRequest("0", airsim.ImageType.Segmentation, False, False)
+            airsim.ImageRequest("0", airsim.ImageType.Segmentation) # Adding third and fourth params does not work
         ])
 
         for idx, response in enumerate(responses):
@@ -206,7 +215,7 @@ class TestFlight:
 
         if self.snapshot_delta and angle > self.next_snapshot:
             print("Taking snapshot at angle {}".format(angle))
-            self.take_snapshot()
+            self.take_snapshots()
             self.next_snapshot += self.snapshot_delta
 
         diff = abs(angle - self.start_angle)
@@ -229,7 +238,19 @@ class TestFlight:
 
         return crossing
 
+
     def _sign(self, s):
         if s < 0:
             return -1
         return 1
+
+
+    def move_to(self, position):
+        pass
+
+
+if __name__ == '__main__':
+    flight = TestFlight()
+    flight.take_off()
+
+    flight.take_snapshots()
