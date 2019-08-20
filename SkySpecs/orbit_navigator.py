@@ -1,13 +1,12 @@
-import setup_path 
+import setup_path
 import airsim
 import os
-import sys
 import math
 import time
-import argparse
+import numpy as np
+import cv2
 
 from utils import Position
-
 
 # Make the drone fly in a circle.
 class OrbitNavigator:
@@ -182,7 +181,7 @@ class OrbitNavigator:
 
         if self.snapshot_delta and angle > self.next_snapshot:            
             print("Taking snapshot at angle {}".format(angle))
-            self.take_snapshot()
+            self.take_snapshots()
             self.next_snapshot += self.snapshot_delta
 
         diff = abs(angle - self.start_angle)
@@ -205,21 +204,67 @@ class OrbitNavigator:
 
         return crossing
 
-    def take_snapshot(self):
-        # first hold our current position so drone doesn't try and keep flying while we take the picture.
-        pos = self.client.getMultirotorState().kinematics_estimated.position
-        self.client.moveToPositionAsync(pos.x_val, pos.y_val, self.z, 0.5, 10, airsim.DrivetrainType.MaxDegreeOfFreedom, 
-            airsim.YawMode(False, self.camera_heading)).join()
-        responses = self.client.simGetImages([airsim.ImageRequest(1, airsim.ImageType.Scene)]) #scene vision image in png format
-        response = responses[0]
-        filename = "photo_" + str(self.snapshot_index)
-        self.snapshot_index += 1
-        airsim.write_file(os.path.normpath(filename + '.png'), response.image_data_uint8)        
-        print("Saved snapshot: {}".format(filename))
-        self.start_time = time.time()  # cause smooth ramp up to happen again after photo is taken.
-
     def sign(self, s):
         if s < 0: 
             return -1
         return 1
+
+    def take_snapshots(self):
+        # first hold our current position so drone doesn't try and keep flying while we take the picture.
+
+        pos = self.client.getMultirotorState().kinematics_estimated.position
+
+        self.client.moveToPositionAsync(pos.x_val, pos.y_val, self.z, 0.5, 10, airsim.DrivetrainType.MaxDegreeOfFreedom,
+            airsim.YawMode(False, self.camera_heading)).join()
+
+        responses = self.client.simGetImages([
+            airsim.ImageRequest("0", airsim.ImageType.DepthVis),
+            airsim.ImageRequest("1", airsim.ImageType.DepthPerspective, True),  # depth in perspective projection
+            airsim.ImageRequest("1", airsim.ImageType.Scene),  # scene vision image in png format
+            airsim.ImageRequest("0", airsim.ImageType.Segmentation) # Adding third and fourth params does not work
+        ])
+
+        for idx, response in enumerate(responses):
+            tmp_dir = 'snapshots'
+
+            try:
+                os.makedirs(tmp_dir)
+            except OSError:
+                if not os.path.isdir(tmp_dir):
+                    raise
+
+            filename = os.path.join(tmp_dir, "photo_" + str(self.snapshot_index) + '_' + str(idx))
+
+            if response.pixels_as_float:
+                print("Type %d, size %d" % (response.image_type, len(response.image_data_float)))
+                airsim.write_pfm(os.path.normpath(filename + '.pfm'), airsim.get_pfm_array(response))
+            elif response.compress:  # png format
+                print("Type %d, size %d" % (response.image_type, len(response.image_data_uint8)))
+                airsim.write_file(os.path.normpath(filename + '.png'), response.image_data_uint8)
+            else:  # uncompressed array
+                print("Type %d, size %d" % (response.image_type, len(response.image_data_uint8)))
+                img1d = np.fromstring(response.image_data_uint8, dtype=np.uint8)  # get numpy array
+                img_rgb = img1d.reshape(response.height, response.width,
+                                        3)  # reshape array to 4 channel image array H X W X 3
+                cv2.imwrite(os.path.normpath(filename + '.png'), img_rgb)  # write to png
+
+        self.snapshot_index += 1
+        self.start_time = time.time()  # cause smooth ramp up to happen again after photo is taken.
+
+    def move_to(self, position, speed):
+        """
+            speed: speed of the drone in m/s
+        """
+        assert len(position) == 3
+
+        x = position[0]
+        y = position[1]
+        z = position[2]
+
+        state = self.client.getMultirotorState()
+        print(state)
+
+        self.client.moveToPositionAsync(x, y, z, speed).join()
+
+        self.client.hoverAsync().join()
 
