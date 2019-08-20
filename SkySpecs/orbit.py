@@ -180,7 +180,7 @@ class OrbitNavigator:
         crossing = False
         self.previous_angle = angle
 
-        if self.snapshot_delta and angle > self.next_snapshot:            
+        if self.snapshot_delta and angle > self.next_snapshot:
             print("Taking snapshot at angle {}".format(angle))
             self.take_snapshot()
             self.next_snapshot += self.snapshot_delta
