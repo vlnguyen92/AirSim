@@ -115,7 +115,8 @@ class OrbitNavigator:
             actual_radius = math.sqrt((dx*dx) + (dy*dy))
             angle_to_center = math.atan2(dy, dx)
 
-            camera_heading = (angle_to_center - math.pi) * 180 / math.pi 
+            camera_heading = (angle_to_center - math.pi) * 180 / math.pi
+            camera_heading = camera_heading
 
             # compute lookahead
             lookahead_x = self.center.x_val + self.radius * math.cos(angle_to_center + lookahead_angle)
@@ -214,7 +215,13 @@ class OrbitNavigator:
 
         pos = self.client.getMultirotorState().kinematics_estimated.position
 
-        self.client.moveToPositionAsync(pos.x_val, pos.y_val, self.z, 0.5, 10, airsim.DrivetrainType.MaxDegreeOfFreedom,
+        self.client.moveToPositionAsync(
+            pos.x_val,
+            pos.y_val,
+            self.z,
+            0.5,
+            10,
+            airsim.DrivetrainType.MaxDegreeOfFreedom,
             airsim.YawMode(False, self.camera_heading)).join()
 
         responses = self.client.simGetImages([
